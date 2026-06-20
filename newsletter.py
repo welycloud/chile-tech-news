@@ -8,6 +8,7 @@ import os
 import json
 import requests
 from datetime import datetime, timezone, timedelta
+from urllib.parse import quote
 from ddgs import DDGS
 from groq import Groq
 
@@ -112,9 +113,11 @@ Si no hay noticias para una seccion, escribe "Sin novedades destacadas hoy."
 
 
 def enviar_ntfy(titulo: str, cuerpo: str) -> None:
-    """Send the newsletter via ntfy.sh."""
+    """Send the newsletter via ntfy.sh.
+    Headers must be latin-1 safe; non-ASCII values must be percent-encoded.
+    """
     headers = {
-        "Title":    titulo,
+        "Title":    quote(titulo),   # percent-encode emoji/accents for HTTP header
         "Priority": "default",
         "Tags":     "newspaper,chile,tech",
         "Markdown": "yes",
@@ -149,7 +152,7 @@ def main():
     print(boletin[:300] + "...")
 
     # 3. Send via ntfy.sh
-    titulo = f"\U0001f1e8\U0001f1f1 Tech Chile - {fecha_str}"
+    titulo = f"Tech Chile Daily - {fecha_str}"   # ASCII-safe title for HTTP header
     print(f"[INFO] Sending to ntfy.sh/{NTFY_TOPIC}...")
     enviar_ntfy(titulo, boletin)
 
