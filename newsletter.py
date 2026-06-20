@@ -1,35 +1,35 @@
 #!/usr/bin/env python3
 """
-BoletÃ­n Diario de TecnologÃ­a Chile
-Busca noticias con DuckDuckGo, analiza con Groq, envÃ­a por ntfy.sh
+Tech Chile Daily Newsletter
+Searches news with DuckDuckGo (ddgs), analyzes with Groq, sends via ntfy.sh
 """
 
 import os
 import json
 import requests
 from datetime import datetime, timezone, timedelta
-from duckduckgo_search import DDGS
+from ddgs import DDGS
 from groq import Groq
 
-# ââ ConfiguraciÃ³n ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+# -- Config ------------------------------------------------------------------
 GROQ_API_KEY  = os.environ["GROQ_API_KEY"]
 NTFY_TOPIC    = "Tecno-Analisis"
 NTFY_URL      = f"https://ntfy.sh/{NTFY_TOPIC}"
 GROQ_MODEL    = "llama-3.3-70b-versatile"
-MAX_RESULTS   = 6      # resultados por query
-CHILE_TZ      = timezone(timedelta(hours=-4))   # UTC-4 (verano) / UTC-3 (invierno) â ntfy recibe UTC
+MAX_RESULTS   = 6
+CHILE_TZ      = timezone(timedelta(hours=-4))   # UTC-4 winter / UTC-3 summer
 
-# ââ Queries de bÃºsqueda ââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+# -- Search queries ----------------------------------------------------------
 QUERIES = {
-    "resumen":         "tecnologÃ­a Chile noticias hoy",
-    "ia_innovacion":   "inteligencia artificial IA Chile LatinoamÃ©rica innovaciÃ³n",
+    "resumen":         "tecnologia Chile noticias hoy",
+    "ia_innovacion":   "inteligencia artificial IA Chile Latinoamerica innovacion",
     "ciberseguridad":  "ciberseguridad Chile ataque hackeo vulnerabilidad",
     "banca_fintech":   "fintech banca digital Chile pagos CMF",
-    "infraestructura": "data center conectividad infraestructura tecnolÃ³gica Chile inversiÃ³n",
+    "infraestructura": "data center conectividad infraestructura tecnologica Chile inversion",
 }
 
 def buscar_noticias(query: str, max_results: int = MAX_RESULTS) -> list[dict]:
-    """Busca noticias recientes con DuckDuckGo."""
+    """Search recent news with DuckDuckGo."""
     resultados = []
     try:
         with DDGS() as ddgs:
@@ -42,27 +42,27 @@ def buscar_noticias(query: str, max_results: int = MAX_RESULTS) -> list[dict]:
                     "resumen": r.get("body", "")[:300],
                 })
     except Exception as e:
-        print(f"[WARN] Error buscando '{query}': {e}")
+        print(f"[WARN] Error searching '{query}': {e}")
     return resultados
 
 
 def generar_boletin(noticias_por_seccion: dict) -> str:
-    """Llama a Groq para generar el boletÃ­n estructurado."""
+    """Call Groq to generate the structured newsletter."""
     client = Groq(api_key=GROQ_API_KEY)
 
     hoy = datetime.now(CHILE_TZ).strftime("%A %d de %B de %Y")
 
-    prompt_sistema = """Eres un editor de boletÃ­n tecnolÃ³gico especializado en Chile y LatinoamÃ©rica.
-Redactas resÃºmenes compactos, claros y Ãºtiles para leer en celular.
-Usa emojis por secciÃ³n, lenguaje directo y mÃ¡ximo 3-4 lÃ­neas por Ã­tem.
+    prompt_sistema = """Eres un editor de boletin tecnologico especializado en Chile y Latinoamerica.
+Redactas resumenes compactos, claros y utiles para leer en celular.
+Usa emojis por seccion, lenguaje directo y maximo 3-4 lineas por item.
 NUNCA inventes noticias; solo sintetiza lo que se te entrega."""
 
-    prompt_usuario = f"""Hoy es {hoy}. Genera un boletÃ­n diario de tecnologÃ­a para Chile con este material:
+    prompt_usuario = f"""Hoy es {hoy}. Genera un boletin diario de tecnologia para Chile con este material:
 
-=== RESUMEN DEL DÃA ===
+=== RESUMEN DEL DIA ===
 {json.dumps(noticias_por_seccion.get('resumen', []), ensure_ascii=False, indent=2)}
 
-=== IA & INNOVACIÃN ===
+=== IA & INNOVACION ===
 {json.dumps(noticias_por_seccion.get('ia_innovacion', []), ensure_ascii=False, indent=2)}
 
 === CIBERSEGURIDAD ===
@@ -74,29 +74,29 @@ NUNCA inventes noticias; solo sintetiza lo que se te entrega."""
 === INFRAESTRUCTURA ===
 {json.dumps(noticias_por_seccion.get('infraestructura', []), ensure_ascii=False, indent=2)}
 
-Estructura del boletÃ­n (usa EXACTAMENTE estos encabezados con emojis):
+Estructura del boletin (usa EXACTAMENTE estos encabezados con emojis):
 
-ð° RESUMEN DEL DÃA
-[2-3 titulares clave de las Ãºltimas 24h, cada uno en 1-2 lÃ­neas]
+\U0001f4f0 RESUMEN DEL DIA
+[2-3 titulares clave de las ultimas 24h, cada uno en 1-2 lineas]
 
-ð¤ IA & INNOVACIÃN
-[2 novedades de IA con impacto en Chile/Latam, 1-2 lÃ­neas c/u]
+\U0001f916 IA & INNOVACION
+[2 novedades de IA con impacto en Chile/Latam, 1-2 lineas c/u]
 
-ð CIBERSEGURIDAD
-[1-2 alertas o incidentes relevantes, 1-2 lÃ­neas c/u]
+\U0001f510 CIBERSEGURIDAD
+[1-2 alertas o incidentes relevantes, 1-2 lineas c/u]
 
-ð¦ BANCA & FINTECH
-[1-2 novedades del sector financiero digital chileno, 1-2 lÃ­neas c/u]
+\U0001f3e6 BANCA & FINTECH
+[1-2 novedades del sector financiero digital chileno, 1-2 lineas c/u]
 
-ðï¸ INFRAESTRUCTURA
-[1-2 novedades de data centers, conectividad o inversiÃ³n tech en Chile]
+\U0001f3d7 INFRAESTRUCTURA
+[1-2 novedades de data centers, conectividad o inversion tech en Chile]
 
-ð¡ DATO DESTACADO
-[Un hecho o cifra relevante y sorprendente del dÃ­a, 1-2 lÃ­neas]
+\U0001f4a1 DATO DESTACADO
+[Un hecho o cifra relevante y sorprendente del dia, 1-2 lineas]
 
 ---
-BoletÃ­n compacto: mÃ¡ximo 400 palabras total. Sin bullets innecesarios. Sin URLs en el texto.
-Si no hay noticias para una secciÃ³n, escribe "Sin novedades destacadas hoy."
+Boletin compacto: maximo 400 palabras total. Sin bullets innecesarios. Sin URLs en el texto.
+Si no hay noticias para una seccion, escribe "Sin novedades destacadas hoy."
 """
 
     respuesta = client.chat.completions.create(
@@ -112,7 +112,7 @@ Si no hay noticias para una secciÃ³n, escribe "Sin novedades destacadas hoy."
 
 
 def enviar_ntfy(titulo: str, cuerpo: str) -> None:
-    """EnvÃ­a el boletÃ­n a ntfy.sh."""
+    """Send the newsletter via ntfy.sh."""
     headers = {
         "Title":    titulo,
         "Priority": "default",
@@ -127,33 +127,33 @@ def enviar_ntfy(titulo: str, cuerpo: str) -> None:
         timeout=15,
     )
     resp.raise_for_status()
-    print(f"[OK] NotificaciÃ³n enviada â {NTFY_URL} (HTTP {resp.status_code})")
+    print(f"[OK] Notification sent -> {NTFY_URL} (HTTP {resp.status_code})")
 
 
 def main():
     fecha_str = datetime.now(CHILE_TZ).strftime("%d/%m/%Y")
-    print(f"[INFO] Iniciando boletÃ­n para {fecha_str} â¦")
+    print(f"[INFO] Starting newsletter for {fecha_str} ...")
 
-    # 1. Buscar noticias
+    # 1. Search news
     noticias = {}
     for seccion, query in QUERIES.items():
-        print(f"[INFO] Buscando: {query}")
+        print(f"[INFO] Searching: {query}")
         noticias[seccion] = buscar_noticias(query)
         total = len(noticias[seccion])
-        print(f"       â {total} resultado(s)")
+        print(f"       -> {total} result(s)")
 
-    # 2. Generar boletÃ­n con IA
-    print("[INFO] Generando boletÃ­n con Groqâ¦")
+    # 2. Generate newsletter with AI
+    print("[INFO] Generating newsletter with Groq...")
     boletin = generar_boletin(noticias)
-    print("[INFO] BoletÃ­n generado:")
-    print(boletin[:500] + "â¦")
+    print("[INFO] Newsletter generated (preview):")
+    print(boletin[:300] + "...")
 
-    # 3. Enviar por ntfy.sh
-    titulo = f"ð¨ð± Tech Chile Â· {fecha_str}"
-    print(f"[INFO] Enviando a ntfy.sh/{NTFY_TOPIC}â¦")
+    # 3. Send via ntfy.sh
+    titulo = f"\U0001f1e8\U0001f1f1 Tech Chile - {fecha_str}"
+    print(f"[INFO] Sending to ntfy.sh/{NTFY_TOPIC}...")
     enviar_ntfy(titulo, boletin)
 
-    print("[INFO] Â¡Listo! BoletÃ­n entregado correctamente.")
+    print("[INFO] Done! Newsletter delivered successfully.")
 
 
 if __name__ == "__main__":
