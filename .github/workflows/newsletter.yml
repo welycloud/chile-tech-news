@@ -1,0 +1,71 @@
+name: BoletÃ­n Diario Tech Chile
+
+# GitHub Actions no soporta zonas horarias en cron.
+# Chile usa UTC-3 (verano, oct-mar) y UTC-4 (invierno, abr-sep).
+# Corremos en ambas ventanas UTC y verificamos la hora en el runner.
+on:
+  schedule:
+    - cron: '0 12 * * *'   # 09:00 hora Chile en verano (CLST, UTC-3)
+    - cron: '0 13 * * *'   # 09:00 hora Chile en invierno (CLT, UTC-4)
+  workflow_dispatch:         # Permite ejecuciÃ³n manual desde la UI de GitHub
+
+jobs:
+  newsletter:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      # ââ 1. Verificar que son las 09:xx en Chile ââââââââââââââââââââââââââ
+      - name: Verificar hora Chile (America/Santiago)
+        id: hora
+        run: |
+          python3 - <<'PYEOF'
+          from datetime import datetime
+          import zoneinfo, os
+
+          now = datetime.now(zoneinfo.ZoneInfo("America/Santiago"))
+          print(f"Hora actual en Chile: {now.strftime('%H:%M %Z (%Y-%m-%d)')}")
+
+          output_file = os.environ.get("GITHUB_OUTPUT", "")
+          event_name  = os.environ.get("GITHUB_EVENT_NAME", "")
+
+          # Si es ejecuciÃ³n manual, siempre correr
+          if event_name == "workflow_dispatch":
+              print("EjecuciÃ³n manual â forzando envÃ­o.")
+              val = "true"
+          elif now.hour == 9:
+              print("â Dentro de la ventana 09:xx â enviando boletÃ­n.")
+              val = "true"
+          else:
+              print(f"â­ï¸  Hora {now.hour:02d}:xx fuera de ventana (09:xx). Omitiendo.")
+              val = "false"
+
+          if output_file:
+              with open(output_file, "a") as f:
+                  f.write(f"enviar={val}\n")
+          PYEOF
+
+      # ââ 2. Checkout del repo ââââââââââââââââââââââââââââââââââââââââââââ
+      - name: Checkout
+        if: steps.hora.outputs.enviar == 'true'
+        uses: actions/checkout@v4
+
+      # ââ 3. Python 3.12 ââââââââââââââââââââââââââââââââââââââââââââââââââ
+      - name: Configurar Python 3.12
+        if: steps.hora.outputs.enviar == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      # ââ 4. Dependencias âââââââââââââââââââââââââââââââââââââââââââââââââ
+      - name: Instalar dependencias
+        if: steps.hora.outputs.enviar == 'true'
+        run: pip install --upgrade pip && pip install -r requirements.txt
+
+      # ââ 5. Ejecutar el boletÃ­n ââââââââââââââââââââââââââââââââââââââââââ
+      - name: Generar y enviar boletÃ­n
+        if: steps.hora.outputs.enviar == 'true'
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+        run: python newsletter.py
